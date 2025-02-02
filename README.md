@@ -17,6 +17,6 @@ GET /api/classify-number?number=371
   "class_sum": 11,
   "fun_fact": "371 is a narcissistic number."
 }
-
+```
 ## Deployment
 Deployed on Vercel: https://number-classification-58cjsakoc.vercel.app
