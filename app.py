@@ -1,65 +1,48 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS  # Import CORS
 import requests
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
-# Helper functions
-def is_prime(n):
-    if n < 2:
-        return False
-    for i in range(2, int(n**0.5) + 1):
-        if n % i == 0:
-            return False
-    return True
+def is_armstrong(number):
+    digits = [int(d) for d in str(number)]
+    power = len(digits)
+    return sum(d ** power for d in digits) == number
 
-def is_perfect(n):
-    if n < 2:
-        return False
-    sum_divisors = sum(i for i in range(1, n) if n % i == 0)
-    return sum_divisors == n
+def digit_sum(number):
+    return sum(int(d) for d in str(number))
 
-def is_armstrong(n):
-    digits = [int(d) for d in str(n)]
-    num_digits = len(digits)
-    return sum(d ** num_digits for d in digits) == n
-
-def sum_of_digits(n):
-    return sum(int(d) for d in str(n))
-
-def get_parity(n):
-    return "even" if n % 2 == 0 else "odd"
-
-def get_fun_fact(n):
-    url = f"http://numbersapi.com/{n}/math"
-    response = requests.get(url)
-    return response.text if response.status_code == 200 else "No fun fact available."
-
-# API endpoint
 @app.route('/api/classify-number', methods=['GET'])
 def classify_number():
     number = request.args.get('number')
-    if not number or not number.lstrip('-').isdigit():
+
+    # Input validation
+    if not number.isdigit():
         return jsonify({"number": number, "error": True}), 400
 
     number = int(number)
     properties = []
-    if is_prime(number):
-        properties.append("prime")
-    if is_perfect(number):
-        properties.append("perfect")
+    
     if is_armstrong(number):
         properties.append("armstrong")
-    properties.append(get_parity(number))
+    
+    if number % 2 == 0:
+        properties.append("even")
+    else:
+        properties.append("odd")
+    
+    fun_fact_response = requests.get(f"http://numbersapi.com/{number}/math")
+    fun_fact = fun_fact_response.text
 
-    response = {
+    return jsonify({
         "number": number,
-        "is_prime": is_prime(number),
-        "is_perfect": is_perfect(number),
+        "is_prime": all(number % i != 0 for i in range(2, int(number ** 0.5) + 1)) and number > 1,
+        "is_perfect": number == sum(i for i in range(1, number) if number % i == 0),
         "properties": properties,
-        "class_sum": sum_of_digits(number),
-        "fun_fact": get_fun_fact(number)
-    }
-    return jsonify(response), 200
+        "digit_sum": digit_sum(number),
+        "fun_fact": fun_fact
+    })
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000)
