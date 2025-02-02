@@ -18,10 +18,12 @@ def classify_number():
     number = request.args.get('number')
 
     try:
-        # Convert the input to a float, then to an integer
+        # Convert the input to a float first
         number = float(number)
-        if number != int(number):  # Check if it's a float
-            number = int(number)  # Convert to integer if it's a float
+        # Only keep integer values
+        if number % 1 != 0:  # Check if it's a float
+            return jsonify({"number": number, "error": True}), 400
+        number = int(number)  # Convert to integer
     except ValueError:
         return jsonify({"number": number, "error": True}), 400
 
@@ -38,7 +40,7 @@ def classify_number():
         properties.append("odd")
     
     # Fetch fun fact from Numbers API
-    fun_fact_response = requests.get(f"http://numbersapi.com/{int(number)}/math")
+    fun_fact_response = requests.get(f"http://numbersapi.com/{abs(number)}/math")
     fun_fact = fun_fact_response.text
 
     return jsonify({
@@ -46,8 +48,9 @@ def classify_number():
         "is_prime": all(number % i != 0 for i in range(2, int(abs(number) ** 0.5) + 1)) and abs(number) > 1,
         "is_perfect": number == sum(i for i in range(1, abs(number)+1) if number % i == 0),
         "properties": properties,
-        "digit_sum": digit_sum(abs(int(number))),  # Use abs for digit sum
+        "digit_sum": digit_sum(abs(number)),  # Use abs for digit sum
         "fun_fact": fun_fact
     })
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
