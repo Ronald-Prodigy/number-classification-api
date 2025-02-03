@@ -1,19 +1,12 @@
-from fastapi import FastAPI, Query
-from fastapi.middleware.cors import CORSMiddleware
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 import requests
 
-app = FastAPI()
-
-# Enable CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app = Flask(__name__)
+CORS(app)  # Enable CORS
 
 def is_prime(n):
+    """Check if a number is prime."""
     if n < 2:
         return False
     for i in range(2, int(n ** 0.5) + 1):
@@ -21,35 +14,54 @@ def is_prime(n):
             return False
     return True
 
-def is_perfect(n):
-    return n == sum(i for i in range(1, n) if n % i == 0)
-
 def is_armstrong(n):
+    """Check if a number is an Armstrong number."""
     digits = [int(d) for d in str(n)]
-    return sum(d ** len(digits) for d in digits) == n
+    power = len(digits)
+    return sum(d ** power for d in digits) == n
 
-def digit_sum(n):
-    return sum(int(d) for d in str(n))
-
-def get_fun_fact(n):
-    response = requests.get(f"http://numbersapi.com/{n}")
-    return response.text if response.status_code == 200 else "No fun fact available"
-
-@app.get("/api/classify-number")
-def classify_number(number: int = Query(..., description="The number to classify")):
+def get_properties(n):
+    """Get mathematical properties of the number."""
     properties = []
-    if is_armstrong(number):
+    if is_prime(n):
+        properties.append("prime")
+    if is_armstrong(n):
         properties.append("armstrong")
-    if number % 2 == 0:
+    if n % 2 == 0:
         properties.append("even")
     else:
         properties.append("odd")
+    return properties
+
+def get_fun_fact(n):
+    """Fetch a fun fact about the number."""
+    try:
+        response = requests.get(f"http://numbersapi.com/{n}", timeout=2)
+        return response.text if response.status_code == 200 else "No fun fact available."
+    except requests.exceptions.RequestException:
+        return "Could not retrieve fun fact."
+
+@app.route('/api/classify-number', methods=['GET'])
+def classify_number():
+    """API endpoint to classify a number."""
+    num = request.args.get('number')
+
+    if num is None or not num.lstrip('-').isdigit():
+        return jsonify({"number": num, "error": True}), 400
     
-    return {
-        "number": number,
-        "is_prime": is_prime(number),
-        "is_perfect": is_perfect(number),
+    num = int(num)
+    properties = get_properties(num)
+    
+    response = {
+        "number": num,
+        "is_prime": is_prime(num),
+        "is_perfect": False,  # Implement perfect number check if required
         "properties": properties,
-        "digit_sum": digit_sum(number),
-        "fun_fact": get_fun_fact(number)
+        "digit_sum": sum(int(digit) for digit in str(num)),
+        "fun_fact": get_fun_fact(num)
     }
+    
+    return jsonify(response), 200
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
