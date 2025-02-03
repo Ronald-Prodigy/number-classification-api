@@ -15,7 +15,7 @@ def is_prime(n):
     return True
 
 def is_perfect(n):
-    if not n.is_integer():  # Only whole numbers can be perfect
+    if not n.is_integer() or n <= 0:  # Perfect numbers are positive integers
         return False
     n = int(n)
     return sum(i for i in range(1, n) if n % i == 0) == n
@@ -62,8 +62,7 @@ def classify_number():
     fun_fact = None
     if classifications["armstrong"]:
         fun_fact = f"{int(number)} is an Armstrong number because " + " + ".join(
-            [f"{d}^{len(str(int(number)))}" for d in str(abs(int(number)))]
-        ) + f" = {int(number)}"
+            [f"{d}^{len(str(int(number)))}" for d in str(abs(int(number)))]) + f" = {int(number)}"
 
     # Build the response dynamically
     response = {
