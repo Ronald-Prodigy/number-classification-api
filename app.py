@@ -1,67 +1,81 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import requests
+import math
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS
+CORS(app)
 
 def is_prime(n):
-    """Check if a number is prime."""
-    if n < 2:
+    if n < 2 or not n.is_integer():  # Prime numbers must be whole and ≥ 2
         return False
-    for i in range(2, int(n ** 0.5) + 1):
+    n = int(n)
+    for i in range(2, int(math.sqrt(n)) + 1):
         if n % i == 0:
             return False
     return True
 
+def is_perfect(n):
+    if not n.is_integer():  # Only whole numbers can be perfect
+        return False
+    n = int(n)
+    return sum(i for i in range(1, n) if n % i == 0) == n
+
 def is_armstrong(n):
-    """Check if a number is an Armstrong number."""
-    digits = [int(d) for d in str(n)]
-    power = len(digits)
-    return sum(d ** power for d in digits) == n
+    if not n.is_integer():  # Armstrong numbers are whole numbers
+        return False
+    digits = [int(d) for d in str(abs(int(n)))]  # Convert to integer before checking
+    return sum(d**len(digits) for d in digits) == int(n)
 
-def get_properties(n):
-    """Get mathematical properties of the number."""
-    properties = []
-    if is_prime(n):
-        properties.append("prime")
-    if is_armstrong(n):
-        properties.append("armstrong")
-    if n % 2 == 0:
-        properties.append("even")
-    else:
-        properties.append("odd")
-    return properties
-
-def get_fun_fact(n):
-    """Fetch a fun fact about the number."""
-    try:
-        response = requests.get(f"http://numbersapi.com/{n}", timeout=2)
-        return response.text if response.status_code == 200 else "No fun fact available."
-    except requests.exceptions.RequestException:
-        return "Could not retrieve fun fact."
+@app.route('/')
+def home():
+    return "Welcome to the Number Classification API! Use /api/classify-number?number=<your_number> to classify a number."
 
 @app.route('/api/classify-number', methods=['GET'])
 def classify_number():
-    """API endpoint to classify a number."""
-    num = request.args.get('number')
+    number = request.args.get('number')
 
-    if num is None or not num.lstrip('-').isdigit():
-        return jsonify({"number": num, "error": True}), 400
+    # Ensure number is included in the error response
+    try:
+        number = float(number)  # Accept both integers and floats
+    except (ValueError, TypeError):
+        return jsonify({"number": number, "error": "Invalid input. Please provide a valid number."}), 400
+
+    properties = []
     
-    num = int(num)
-    properties = get_properties(num)
-    
-    response = {
-        "number": num,
-        "is_prime": is_prime(num),
-        "is_perfect": False,  # Implement perfect number check if required
-        "properties": properties,
-        "digit_sum": sum(int(digit) for digit in str(num)),
-        "fun_fact": get_fun_fact(num)
+    # Classify the number based on various properties
+    classifications = {
+        "prime": is_prime(number),
+        "perfect": is_perfect(number),
+        "armstrong": is_armstrong(number),
+        "even": number % 2 == 0,
+        "odd": number % 2 != 0
     }
-    
+
+    # Dynamically construct the properties list based on classifications
+    for prop, is_valid in classifications.items():
+        if is_valid:
+            properties.append(prop)
+
+    digit_sum = sum(int(digit) for digit in str(abs(int(number))))
+
+    # Generate the fun fact dynamically for Armstrong numbers
+    fun_fact = None
+    if classifications["armstrong"]:
+        fun_fact = f"{int(number)} is an Armstrong number because " + " + ".join(
+            [f"{d}^{len(str(int(number)))}" for d in str(abs(int(number)))]
+        ) + f" = {int(number)}"
+
+    # Build the response dynamically
+    response = {
+        "number": number,
+        "is_prime": classifications["prime"],
+        "is_perfect": classifications["perfect"],
+        "properties": properties,
+        "digit_sum": digit_sum,
+        "fun_fact": fun_fact if fun_fact else "No fact found."
+    }
+
     return jsonify(response), 200
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(debug=True)
